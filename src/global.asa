@@ -1,0 +1,98 @@
+REM ##########################################################################
+REM                                                                          #
+REM   GLOBAL.ASP                                                             #
+REM   VCTURBO												              	 #
+REM   Microsoft Commerce Server v3.00                                        #
+REM                                                                          #
+REM   Copyright (c) 1996-98 Microsoft Corporation.  All rights reserved.     #
+REM                                                                          #
+REM ##########################################################################
+
+
+<OBJECT RUNAT=Server SCOPE=Application ID=MSCSSite           PROGID="Commerce.Dictionary">		</OBJECT>
+<OBJECT RUNAT=Server SCOPE=Application ID=MSCSQueryMap       PROGID="Commerce.Dictionary">		</OBJECT>
+<OBJECT RUNAT=Server SCOPE=Application ID=MSCSMessageManager PROGID="Commerce.MessageManager">	</OBJECT>
+<OBJECT RUNAT=Server SCOPE=Application ID=MSCSDataFunctions  PROGID="Commerce.DataFunctions">	</OBJECT>
+<OBJECT RUNAT=Server SCOPE=Application ID=MSCSShopperManager PROGID="Commerce.StandardSManager"></OBJECT>
+<OBJECT RUNAT=Server SCOPE=Application ID=FileDocument       PROGID="Commerce.FileDocument">    </OBJECT>
+
+<SCRIPT LANGUAGE=VBScript RUNAT=Server>
+    Option Explicit
+     
+    Sub Application_OnStart
+        Dim SiteName 
+		SiteName = "vcturbo"
+        
+        Dim FileDocument
+        Dim MSCSSite
+        Dim MSCSQueryMap
+        Dim MSCSMessageManager
+        Dim MSCSDataFunctions
+        Dim MSCSShopperManager
+
+        Set Application("MSCSSite")             = ReadSiteDict(sitename)
+        Set Application("MSCSQueryMap")         = InitQueryMap
+        Set Application("MSCSShopperManager")   = InitShopperManager
+        Set Application("MSCSMessageManager")   = InitMessageManager
+        Set Application("MSCSDataFunctions")    = InitDataFunctions
+        Application("MSCSSIDURLKey")            = "mscssid"
+
+    End Sub
+    
+    REM -- Initialize Shopper Manager for managing shopperId values
+	Function InitShopperManager
+		REM Create a Shopper Manager to deal with managing shopperId values
+        Dim SiteName
+		Call MSCSShopperManager.InitManager(SiteName , "URL")
+		Set InitShopperManager = MSCSShopperManager
+	End Function
+
+    REM -- Initialize Data Functions with locale:
+	Function InitDataFunctions
+		REM -- Create a data functions object for validation
+		MSCSDataFunctions.Locale = &H0409
+		Set InitDataFunctions = MSCSDataFunctions
+	End Function
+
+    REM -- Read Store Dictionary
+	Function ReadsiteDict(SiteName)
+        REM -- Read Store Dictionary    
+		Call FileDocument.ReadDictionaryFromFile( Server.MapPath("/"+SiteName) + "/config/site.csc", "IISProperties", MSCSSite)
+        Set ReadsiteDict = MSCSSite 
+	End Function
+
+    REM -- Create a Query Map and add all queries:
+	Function InitQueryMap	
+		REM -- Create Query Map Dictionary
+		Set MSCSQueryMap.price_promo_system = Server.CreateObject("Commerce.Dictionary")
+		MSCSQueryMap.price_promo_system.SQLCommand = "select promo_name, date_start, date_end, shopper_all, shopper_column, shopper_op, shopper_value, cond_all, cond_column, cond_op, cond_value, cond_basis, cond_min, award_all, award_column, award_op, award_value, award_max, disjoint_cond_award, disc_type, disc_value from vcturbo_promo_price where active <> 0 order by promo_rank"
+
+		Set MSCSQueryMap.insert_receipt_item		= Server.CreateObject("Commerce.Dictionary")
+		MSCSQueryMap.insert_receipt_item.SQLCommand = "insert into vcturbo_receipt_item (order_id, shopper_id, created, modified, item_id, sku, pfid, name, quantity, product_list_price, iadjust_regularprice, iadjust_currentprice, oadjust_adjustedprice, monogram, attr_text) values (?, ?, GetDate(), GetDate(),?,?,?,?,?,?,?,?,?,?,?)"
+    
+		Set MSCSQueryMap.insert_receipt		= Server.CreateObject("Commerce.Dictionary")
+		MSCSQueryMap.insert_receipt.SQLCommand = "insert into vcturbo_receipt values (?, ?, GetDate(), GetDate(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+
+		Set InitQueryMap = MSCSQueryMap
+	End Function
+    
+    REM -- Initialize Message Manager (for use in pipeline) and add all messages:
+	Function InitMessageManager
+		REM -- Create a message manager for use by the pipeline
+		Call MSCSMessageManager.AddLanguage("usa", &H0409)
+		MSCSMessageManager.defaultLanguage = "usa"
+		Call MSCSMessageManager.AddMessage("pur_out_of_stock", "At least one item is out of stock.")
+		Call MSCSMessageManager.AddMessage("pur_badsku", "Products in your basket were deleted because they don't exist in this store.")
+		Call MSCSMessageManager.AddMessage("pur_badplacedprice", "Prices of products in your basket have been updated.")
+		Call MSCSMessageManager.AddMessage("pur_noitems", "An order must have at least one item.")
+		Call MSCSMessageManager.AddMessage("pur_badshipping", "Unable to complete order. Cannot compute shipping cost.")
+		Call MSCSMessageManager.AddMessage("pur_badtax", "Unable to complete order. Cannot compute tax.")
+		Call MSCSMessageManager.AddMessage("pur_badhandling", "Unable to complete order. Cannot compute handling cost.")
+		Call MSCSMessageManager.AddMessage("pur_badverify", "Changes to the data require your review. Please review and resubmit.")
+		Call MSCSMessageManager.AddMessage("pur_badpayment", "There was a problem authorizing your credit.  Please verify your payment information or use a different card.")
+		Call MSCSMessageManager.AddMessage("pur_badcc", "Bad Credit Card Number.")
+		set InitMessageManager = MSCSMessageManager
+	End Function
+  
+</SCRIPT>
+ 
